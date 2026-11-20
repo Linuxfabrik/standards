@@ -37,6 +37,8 @@ jobs:
       matrix:
         include:
           - repo: 'checklistfabrik'
+          - repo: 'firewallfabrik'
+            keep-license: true
           - repo: 'icingaweb2-module-generictts'
             keep-license: true
           - repo: 'icingaweb2-theme-linuxfabrik'
