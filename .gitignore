@@ -1,2 +1,5 @@
 **/.DS_Store
-.claude/
+
+# Claude Code local settings and personal instructions
+.claude/settings.local.json
+CLAUDE.local.md
