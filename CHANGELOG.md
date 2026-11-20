@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 * The shared rules of all Linuxfabrik repositories, consolidated from the `CONTRIBUTING.md` files of the individual repositories
 * The files that are byte-identical in every Linuxfabrik repository
+* A nightly sync that brings both into every Linuxfabrik repository as a pull request, and reports repositories over the size limits
 
 
 [Unreleased]: https://github.com/Linuxfabrik/standards/commits/main

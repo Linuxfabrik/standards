@@ -163,6 +163,13 @@ This repository is the single source of the rules that all Linuxfabrik repositor
 - `AGENTS.md` points every coding agent to `CONTRIBUTING.md`. `CLAUDE.md` imports both into Claude Code at session start, so the rules are in context before the first tool call. This is also why `CONTRIBUTING.md` has a size limit. `LICENSE` has two exceptions: `firewallfabrik` is GPL, because it includes GPL code, and `icingaweb2-module-generictts` stays GPLv2, because its code was taken over from Icinga.
 
 
+### How the Sync Works
+
+The `Linuxfabrik: Sync standards` workflow runs `tools/sync-standards` for every repository in its matrix, on each change here and nightly. It opens or updates a pull request `chore: sync Linuxfabrik standards` in a repository whose copy differs, and fails when a repository breaks the size limits of the Documentation rules. The same script runs locally: `tools/sync-standards copy ../lfops`, `tools/sync-standards check ../lfops`.
+
+To add a repository, insert the BEGIN and END marker lines into its `CONTRIBUTING.md` by hand, remove the `/.github/pre-commit` entry from its `.github/dependabot.yml` (Dependabot updates that directory here), and add the repository to the matrix of `.github/workflows/lf-sync.yml` and to the list in `README.md`.
+
+
 ### Changing a Standard
 
 - Change the rule here, never in a copy. A copy edited in another repository is overwritten by the next sync.
@@ -175,3 +182,4 @@ This repository is the single source of the rules that all Linuxfabrik repositor
 
 - `contributing`: the shared block in `CONTRIBUTING.md`
 - `files`: the byte-identical files listed above
+- `sync`: `tools/sync-standards` and its workflow

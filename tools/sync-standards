@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+#
+# Author:  Linuxfabrik GmbH, Zurich, Switzerland
+# Contact: info (at) linuxfabrik (dot) ch
+#          https://www.linuxfabrik.ch/
+# License: The Unlicense, see LICENSE file.
+
+# Usage:
+#   tools/sync-standards copy [--keep-license] TARGET_DIR
+#   tools/sync-standards check TARGET_DIR
+#
+# `copy` writes the byte-identical files and the "Linuxfabrik Standards" block of
+# CONTRIBUTING.md from this repository into the checkout at TARGET_DIR.
+# `--keep-license` leaves LICENSE alone, for the repositories under another
+# licence. `check` verifies the size limits of the Documentation rules.
+
+set -e -o pipefail -u
+
+SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly SOURCE_DIR
+readonly BEGIN_MARKER='<!-- BEGIN linuxfabrik-standards'
+readonly END_MARKER='<!-- END linuxfabrik-standards -->'
+readonly CONTRIBUTING_MAX_BYTES=51200
+readonly GUIDE_MAX_CHARS=40000
+readonly IDENTICAL_FILES=(
+    '.github/FUNDING.yml'
+    '.github/pre-commit/requirements.in'
+    '.github/pre-commit/requirements.txt'
+    'AGENTS.md'
+    'CLAUDE.md'
+    'CODE_OF_CONDUCT.md'
+    'LICENSE'
+)
+
+die() {
+    echo "sync-standards: $*" >&2
+    exit 1
+}
+
+# Counts the lines that are exactly a marker, not lines that merely mention one.
+count_markers() {
+    local file="$1"
+    local begin end
+    begin=$(awk -v m="${BEGIN_MARKER}" 'index($0, m) == 1 { n++ } END { print n + 0 }' "${file}")
+    end=$(awk -v m="${END_MARKER}" '$0 == m { n++ } END { print n + 0 }' "${file}")
+    echo "${begin} ${end}"
+}
+
+copy() {
+    local keep_license="$1" target="$2"
+    local file block
+
+    [[ -f "${target}/CONTRIBUTING.md" ]] || die "${target}/CONTRIBUTING.md does not exist"
+    [[ "$(count_markers "${target}/CONTRIBUTING.md")" == '1 1' ]] \
+        || die "${target}/CONTRIBUTING.md needs exactly one BEGIN and one END marker line; insert the block by hand once"
+
+    for file in "${IDENTICAL_FILES[@]}"; do
+        [[ "${file}" == 'LICENSE' && "${keep_license}" == 'yes' ]] && continue
+        mkdir --parents -- "$(dirname -- "${target}/${file}")"
+        cp -- "${SOURCE_DIR}/${file}" "${target}/${file}"
+    done
+
+    block=$(mktemp)
+    awk -v b="${BEGIN_MARKER}" -v e="${END_MARKER}" \
+        'index($0, b) == 1 { on = 1 } on { print } $0 == e { exit }' \
+        "${SOURCE_DIR}/CONTRIBUTING.md" > "${block}"
+    awk -v b="${BEGIN_MARKER}" -v e="${END_MARKER}" -v blockfile="${block}" '
+        index($0, b) == 1 { while ((getline line < blockfile) > 0) print line; skip = 1; next }
+        skip && $0 == e { skip = 0; next }
+        !skip { print }
+    ' "${target}/CONTRIBUTING.md" > "${block}.new"
+    mv -- "${block}.new" "${target}/CONTRIBUTING.md"
+    rm -- "${block}"
+}
+
+check() {
+    local target="$1"
+    local errors=0 size file name
+
+    size=$(wc --bytes < "${target}/CONTRIBUTING.md")
+    if (( size > CONTRIBUTING_MAX_BYTES )); then
+        echo "CONTRIBUTING.md: ${size} bytes, the limit is ${CONTRIBUTING_MAX_BYTES}" >&2
+        errors=$((errors + 1))
+    fi
+    for file in "${target}"/docs/developer-guide/*.md; do
+        [[ -e "${file}" ]] || continue
+        name="${file#"${target}/"}"
+        size=$(wc --chars < "${file}")
+        if (( size > GUIDE_MAX_CHARS )); then
+            echo "${name}: ${size} characters, the limit is ${GUIDE_MAX_CHARS}" >&2
+            errors=$((errors + 1))
+        fi
+        if ! grep --quiet --fixed-strings -- "${name}" "${target}/CONTRIBUTING.md"; then
+            echo "${name}: not listed in CONTRIBUTING.md" >&2
+            errors=$((errors + 1))
+        fi
+    done
+    (( errors == 0 )) || die "${errors} finding(s) in ${target}"
+}
+
+main() {
+    local mode="${1:-}" keep_license='no'
+    shift || true
+    if [[ "${1:-}" == '--keep-license' ]]; then
+        keep_license='yes'
+        shift
+    fi
+    [[ $# -eq 1 ]] || die 'usage: sync-standards copy [--keep-license] TARGET_DIR | check TARGET_DIR'
+    case "${mode}" in
+        copy) copy "${keep_license}" "$1" ;;
+        check) check "$1" ;;
+        *) die "unknown mode '${mode}'" ;;
+    esac
+}
+
+main "$@"
