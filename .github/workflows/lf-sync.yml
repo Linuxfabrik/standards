@@ -1,0 +1,95 @@
+name: 'Linuxfabrik: Sync standards'
+
+# Brings the "Linuxfabrik Standards" block of CONTRIBUTING.md and the
+# byte-identical files into every Linuxfabrik repository, as a pull request
+# someone reads before it lands. The nightly run finds a copy edited by hand in
+# a repository, and its pull request restores the copy.
+
+on:
+  push:
+    branches: ['main']
+    paths:
+      - '.github/FUNDING.yml'
+      - '.github/pre-commit/**'
+      - '.github/workflows/lf-sync.yml'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE'
+      - 'tools/sync-standards'
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch: {}
+
+permissions: 'read-all'
+
+jobs:
+  sync:
+    name: 'Sync ${{ matrix.repo }}'
+    runs-on: 'ubuntu-latest'
+    strategy:
+      fail-fast: false
+      # A repository joins this list in the pull request that inserts the
+      # BEGIN and END markers into its CONTRIBUTING.md; without them the copy
+      # step refuses to run. `keep-license` marks the repositories under
+      # another licence (see CONTRIBUTING.md, "What Lives Here").
+      matrix:
+        include:
+          - repo: 'lib'
+    steps:
+      - name: 'Harden the runner (Audit all outbound calls)'
+        uses: 'step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a' # v2.22.4
+        with:
+          egress-policy: 'audit'
+
+      # The token of the linuxfabrik-automation app, limited to the target
+      # repository. Unlike GITHUB_TOKEN, its pull requests trigger the CI of
+      # the target repository.
+      - name: 'Generate app token'
+        id: 'app-token'
+        uses: 'actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510' # v3.3.0
+        with:
+          client-id: '${{ vars.LF_AUTOMATION_CLIENT_ID }}'
+          private-key: '${{ secrets.LF_AUTOMATION_APP_PRIVATE_KEY }}'
+          owner: 'Linuxfabrik'
+          repositories: '${{ matrix.repo }}'
+
+      - name: 'Checkout standards'
+        uses: 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' # v7.0.1
+        with:
+          path: 'standards'
+          persist-credentials: false
+
+      - name: 'Checkout ${{ matrix.repo }}'
+        uses: 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' # v7.0.1
+        with:
+          repository: 'Linuxfabrik/${{ matrix.repo }}'
+          path: 'target'
+          token: '${{ steps.app-token.outputs.token }}'
+
+      - name: 'Copy the standards'
+        run: 'standards/tools/sync-standards copy ${{ matrix.keep-license && ''--keep-license'' || '''' }} target'
+
+      # No change means no pull request; an open one is updated in place.
+      - name: 'Create Pull Request'
+        uses: 'peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1' # v8.1.3
+        with:
+          path: 'target'
+          token: '${{ steps.app-token.outputs.token }}'
+          commit-message: 'chore: sync Linuxfabrik standards'
+          title: 'chore: sync Linuxfabrik standards'
+          body: |
+            Brings the "Linuxfabrik Standards" block of `CONTRIBUTING.md` and
+            the byte-identical files to the state of
+            https://github.com/Linuxfabrik/standards/commit/${{ github.sha }}.
+
+            Merge it as it is. A change to these files belongs in
+            Linuxfabrik/standards; a hand edit here is undone by the next run.
+          branch: 'chore/sync-standards'
+          delete-branch: true
+
+      # Runs after the pull request step, so a size finding does not hold back
+      # the sync. It fails the job, which shows up in the Actions list here.
+      - name: 'Check the size limits'
+        run: 'standards/tools/sync-standards check target'
