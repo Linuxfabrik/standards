@@ -36,7 +36,12 @@ jobs:
       # another licence (see CONTRIBUTING.md, "What Lives Here").
       matrix:
         include:
+          - repo: 'icingaweb2-module-generictts'
+            keep-license: true
+          - repo: 'icingaweb2-theme-linuxfabrik'
           - repo: 'lib'
+          - repo: 'mcp-server-icinga'
+          - repo: 'packaging'
     steps:
       - name: 'Harden the runner (Audit all outbound calls)'
         uses: 'step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a' # v2.22.4
