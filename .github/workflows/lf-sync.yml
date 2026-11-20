@@ -46,6 +46,7 @@ jobs:
           - repo: 'lfops'
           - repo: 'lib'
           - repo: 'mcp-server-icinga'
+          - repo: 'monitoring-plugins'
           - repo: 'packaging'
     steps:
       - name: 'Harden the runner (Audit all outbound calls)'
