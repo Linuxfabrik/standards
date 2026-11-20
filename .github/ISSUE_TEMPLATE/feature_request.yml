@@ -1,0 +1,24 @@
+name: 'Feature request'
+description: 'Propose a new rule or a change to an existing one'
+labels:
+  - 'enhancement'
+body:
+  - type: 'textarea'
+    id: 'solution'
+    attributes:
+      label: 'Proposed rule'
+      description: 'The rule as you would write it, and the problem it solves. Name a concrete case, ideally an issue, commit or incident.'
+    validations:
+      required: true
+
+  - type: 'textarea'
+    id: 'alternatives'
+    attributes:
+      label: 'Alternatives considered'
+      description: 'Could the rule live in the CONTRIBUTING.md of a single repository instead?'
+
+  - type: 'textarea'
+    id: 'context'
+    attributes:
+      label: 'Additional context'
+      description: 'Repositories affected, and anything else that helps.'
