@@ -43,6 +43,7 @@ jobs:
             keep-license: true
           - repo: 'icingaweb2-theme-linuxfabrik'
           - repo: 'kickstart'
+          - repo: 'lfops'
           - repo: 'lib'
           - repo: 'mcp-server-icinga'
           - repo: 'packaging'
